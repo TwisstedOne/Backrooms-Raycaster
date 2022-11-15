@@ -145,18 +145,18 @@ public class raycastC extends JPanel {
             double tpdy = Math.sin(degToRad(pa + 180));
             int xo = 0; if (tpdx < 0) { xo = -20; } else { xo = 20; }
             int yo = 0; if (tpdy < 0) { yo = -20; } else { yo = 20; }
-            int ipx = (int) px / 64, ipx_add_xo = (int) ((px + xo) / 64), ipx_sub_xo = (int) ((px - xo) / 64); // player grid pos, pos + x_offset, pos - x offset
-            int ipy = (int) py / 64, ipy_add_yo = (int) ((py + yo) / 64), ipy_sub_yo = (int) ((py - yo) / 64);
+            int ipx = (int) px / 64, ipx_add_xo = (int) ((px + yo) / 64), ipx_sub_xo = (int) ((px - yo) / 64); // player grid pos, pos + x_offset, pos - x offset
+            int ipy = (int) py / 64, ipy_add_yo = (int) ((py + xo) / 64), ipy_sub_yo = (int) ((py - xo) / 64);
 
             if (key.equals("a")) {
-                if (mapW[ipy * mapX + ipx_sub_xo] == 0) { px += (tpdy/2 * movementSpeed * fps); }
+                if (mapW[ipy * mapX + ipx_add_xo] == 0) { px += (tpdy/2 * movementSpeed * fps); }
                 if (mapW[ipy_sub_yo * mapX + ipx] == 0) { py -= (tpdx/2 * movementSpeed * fps); }
                 continue; }
 
-            /*if (key.equals("d")) {
-                if (mapW[ipy_sub_yo * mapX + ipx] == 0) { px -= (tpdy/2 * movementSpeed * fps); }
-                if (mapW[ipy_add_yo * mapX + ipx] == 0) { py += (tpdx/2 * movementSpeed * fps); }
-                continue; }*/
+            if (key.equals("d")) {
+                if (mapW[ipy * mapX + ipx_sub_xo] == 0) { px -= (tpdy/2 * movementSpeed * fps); } 
+                if (mapW[ipy_add_yo * mapX + ipx] == 0) { py += (tpdx/2 * movementSpeed * fps); } 
+                continue; }
 
             xo = 0; if (pdx < 0) { xo = -20; } else { xo = 20; }
             yo = 0; if (pdy < 0) { yo = -20; } else { yo = 20; }
@@ -164,8 +164,8 @@ public class raycastC extends JPanel {
             ipy = (int) py / 64; ipy_add_yo = (int) ((py + yo) / 64); ipy_sub_yo = (int) ((py - yo) / 64);
 
             if (key.equals("w")) {
-                if (mapW[ipy * mapX + ipx_add_xo] == 0) { px +=  (pdx * movementSpeed * fps); }
-                if (mapW[ipy_add_yo * mapX + ipx] == 0) { py +=  (pdy * movementSpeed * fps); }
+                if (mapW[ipy * mapX + ipx_add_xo] == 0) { px +=  (pdx * movementSpeed * fps); } 
+                if (mapW[ipy_add_yo * mapX + ipx] == 0) { py +=  (pdy * movementSpeed * fps); } 
                 continue; }
             if (key.equals("s")) {
                 if (mapW[ipy * mapX + ipx_sub_xo] == 0) { px -=  (pdx * movementSpeed * fps); }
