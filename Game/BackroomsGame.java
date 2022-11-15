@@ -6,6 +6,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
 import javax.swing.*;
+// Sound
+import javax.sound.sampled.*;
 
 class sprite {
     int type; // static, key, enemy
@@ -89,13 +91,19 @@ public class raycastC extends JPanel {
     static int[] Sprite_Textures;
     static int[] Skybox;
 
+    int mouseOrigin = 0, mouseCurrent = 0;
+    boolean mouseHeld = false;
+    double sensitivity = 1;
+    static double startPositionX = 3, startPositionY = 3;
+
     int[] depth = new int[120];
 
     static int FOV = 15;
 
-    static double px, py, pdx, pdy, pa;
+    static double px, py, pdx, pdy, pa, ppa;
     static double movementSpeed = .3;
     static double turnSpeed = .32;
+    static double nextbotSpeed = 2.5;
 
     static void sleep(int miliseconds) {
         try   { Thread.sleep(miliseconds); } 
@@ -123,24 +131,37 @@ public class raycastC extends JPanel {
     double FixAng(double a) { if (a > 359) { a -= 360; } if (a <   0) { a += 360; } return a; }
 
     void keyboard() {
+        boolean canSprint = false;
+        if (mouseHeld) {
+            pa = ppa + (mouseOrigin - MouseInfo.getPointerInfo().getLocation().getX())/2; pa = FixAng(pa);
+            pdx = Math.cos(degToRad(pa)); pdy = -Math.sin(degToRad(pa));
+        }
+
         for (int i = 0; i < keysPressed.length; i++) {
             String key = keysPressed[i];
 
-            if (key.equals("a")) {
-                pa += turnSpeed * fps; pa = FixAng(pa);
-                pdx = Math.cos(degToRad(pa)); pdy = -Math.sin(degToRad(pa));
-                continue; }
-
-            if (key.equals("d")) {
-                pa -= turnSpeed * fps; pa = FixAng(pa);
-                pdx = Math.cos(degToRad(pa)); pdy = -Math.sin(degToRad(pa));
-                continue; }
-
                 // Collisons
-            int xo = 0; if (pdx < 0) { xo = -20; } else { xo = 20; }
-            int yo = 0; if (pdy < 0) { yo = -20; } else { yo = 20; }
-            int ipx = (int) px / 64, ipx_add_xo = (int) ((px + xo) / 64), ipx_sub_xo = (int) ((px - xo) / 64);
+            double tpdx = -Math.cos(degToRad(pa + 180));
+            double tpdy = Math.sin(degToRad(pa + 180));
+            int xo = 0; if (tpdx < 0) { xo = -20; } else { xo = 20; }
+            int yo = 0; if (tpdy < 0) { yo = -20; } else { yo = 20; }
+            int ipx = (int) px / 64, ipx_add_xo = (int) ((px + xo) / 64), ipx_sub_xo = (int) ((px - xo) / 64); // player grid pos, pos + x_offset, pos - x offset
             int ipy = (int) py / 64, ipy_add_yo = (int) ((py + yo) / 64), ipy_sub_yo = (int) ((py - yo) / 64);
+
+            if (key.equals("a")) {
+                if (mapW[ipy * mapX + ipx_sub_xo] == 0) { px += (tpdy/2 * movementSpeed * fps); }
+                if (mapW[ipy_sub_yo * mapX + ipx] == 0) { py -= (tpdx/2 * movementSpeed * fps); }
+                continue; }
+
+            /*if (key.equals("d")) {
+                if (mapW[ipy_sub_yo * mapX + ipx] == 0) { px -= (tpdy/2 * movementSpeed * fps); }
+                if (mapW[ipy_add_yo * mapX + ipx] == 0) { py += (tpdx/2 * movementSpeed * fps); }
+                continue; }*/
+
+            xo = 0; if (pdx < 0) { xo = -20; } else { xo = 20; }
+            yo = 0; if (pdy < 0) { yo = -20; } else { yo = 20; }
+            ipx = (int) px / 64; ipx_add_xo = (int) ((px + xo) / 64); ipx_sub_xo = (int) ((px - xo) / 64);
+            ipy = (int) py / 64; ipy_add_yo = (int) ((py + yo) / 64); ipy_sub_yo = (int) ((py - yo) / 64);
 
             if (key.equals("w")) {
                 if (mapW[ipy * mapX + ipx_add_xo] == 0) { px +=  (pdx * movementSpeed * fps); }
@@ -150,6 +171,15 @@ public class raycastC extends JPanel {
                 if (mapW[ipy * mapX + ipx_sub_xo] == 0) { px -=  (pdx * movementSpeed * fps); }
                 if (mapW[ipy_sub_yo * mapX + ipx] == 0) { py -=  (pdy * movementSpeed * fps); }
                 continue; }
+
+            if (key.equals("shift")) {
+                movementSpeed = .7;
+                canSprint = true;
+            }
+        }
+
+        if (!canSprint) {
+            movementSpeed = .3;
         }
     }
 
@@ -258,8 +288,18 @@ public class raycastC extends JPanel {
         //if(px < sprites[0].x + 30 && px >sprites[0].x-30 && py < sprites[0].y + 30 && py > sprites[0].y - 30){ sprites[0].state = 0;} //pick up key 	
         //if(px < sprites[3].x + 30 && px >sprites[3].x-30 && py < sprites[3].y + 30 && py > sprites[3].y - 30){ gameState = 4;} //enemy kills
 
-        if (sprites[0].x > px) { sprites[0].x -= 1; }
-        if (sprites[0].x < px) { sprites[0].x += 1; }
+        //int spx=(int)sprites[0].x>>6,          spy=(int)sprites[0].y>>6;          //normal grid position
+        //int spx_add=((int)sprites[0].x+15)>>6, spy_add=((int)sprites[0].y+15)>>6; //normal grid position plus     offset
+        //int spx_sub=((int)sprites[0].x-15)>>6, spy_sub=((int)sprites[0].y-15)>>6; //normal grid position subtract offset
+        //if(sprites[0].x>px && mapW[spy*8+spx_sub]==0){ sprites[0].x-=0.04*fps;}
+        //if(sprites[0].x<px && mapW[spy*8+spx_add]==0){ sprites[0].x+=0.04*fps;}
+        //if(sprites[0].y>py && mapW[spy_sub*8+spx]==0){ sprites[0].y-=0.04*fps;}
+        //if(sprites[3].y<py && mapW[spy_add*8+spx]==0){ sprites[3].y+=0.04*fps;}
+
+        /*if (sprites[0].x > px) { sprites[0].x -= nextbotSpeed; }
+        if (sprites[0].x < px) { sprites[0].x += nextbotSpeed; }
+        if (sprites[0].y > py) { sprites[0].y -= nextbotSpeed; }
+        if (sprites[0].y < py) { sprites[0].y += nextbotSpeed; }*/
 
 
         double sx = sprites[0].x - px; //temp double variables
@@ -274,23 +314,22 @@ public class raycastC extends JPanel {
         sx = (sx * 108.0/sy) + (120/2); //convert to screen x,y
         sy = (sz * 108.0/sy) + ( 80/2);
 
-        int scale = (int) (32 * 80/b);   //scale sprite based on distance
+        int scale = (int) (64 * 80/b);   //scale sprite based on distance
         if (scale < 0) { scale = 0; } if (scale > 120) { scale = 120; }  
 
         //texture
-        double t_x = 0, t_y = 31, t_x_step = 31.5/(double) scale, t_y_step = 32.0/(double) scale;
+        double t_x = 0, t_y = 63, t_x_step = 63.5/(double) scale, t_y_step = 64.0/(double) scale;
 
         for (x = (int) (sx-scale/2); x < sx + scale/2; x++) {
-            t_y = 31;
+            t_y = 63;
             for (y = 0; y < scale; y++) {
                 if (sprites[0].state == 1 && x  > 0 && x < 120 && b < depth[x]) {
-                    int pixel = ((int) t_y * 32 + (int) t_x) * 3 + (sprites[0].map * 32 * 32 * 3);
+                    int pixel = ((int) t_y * 64 + (int) t_x) * 3 + (sprites[0].map * 64 * 64 * 3);
                     int red   = Sprite_Textures[pixel+0];
                     int green = Sprite_Textures[pixel+1];
                     int blue  = Sprite_Textures[pixel+2];
-                    if (red != 255 && green != 0 && blue != 255) { //dont draw if purple
-                        g.setStroke(new BasicStroke(FOV)); setColor(g, red, green, blue); g.draw(new Line2D.Double(x * FOV, sy * FOV - y * FOV, x * FOV, sy * FOV - y * FOV));
-                    }
+                    if (red == 255 && green == 0 && blue == 255) {  } //dont draw if purple
+                    else { g.setStroke(new BasicStroke(FOV)); setColor(g, red, green, blue); g.draw(new Line2D.Double(x * FOV, sy * FOV - y * FOV, x * FOV, sy * FOV - y * FOV)); }
                     t_y -= t_y_step; if (t_y < 0) { t_y = 0; }
                 }
             }
@@ -328,7 +367,7 @@ public class raycastC extends JPanel {
     }
 
     public raycastC() {
-        KeyListener listener = new KeyListener() {
+        KeyListener keylistener = new KeyListener() {
             public void keyTyped(KeyEvent e) { // Only For Single Used
                 // String keyPressed = Character.toString(e.getKeyChar());
                 
@@ -361,8 +400,46 @@ public class raycastC extends JPanel {
                 for (int i = 0; i < keysPressed.length; i++) { if (keysPressed[i].equals(keyPressed)) { keysPressed[i] = ""; break; } }
             }
         };
-        addKeyListener(listener);
+        MouseListener mouselistener = new MouseListener() {
+            public void mouseClicked(MouseEvent e) { }
+
+            public void mouseEntered(MouseEvent e) { }
+
+            public void mouseExited(MouseEvent e) { }
+
+            public void mousePressed(MouseEvent e) { 
+                mouseOrigin = e.getX();
+                ppa = pa;
+                mouseHeld = true;
+            }
+
+            public void mouseReleased(MouseEvent e) { mouseHeld = false; ppa = pa; }
+        };
+        addMouseListener(mouselistener);
+        addKeyListener(keylistener);
         setFocusable(true);
+    }
+
+    static void SimpleAudioPlayer() {
+        try {
+            AudioInputStream audioInputStream;
+            Clip clip;  
+            // create AudioInputStream object
+            audioInputStream = AudioSystem.getAudioInputStream(new File("C:/Users/scott/OneDrive/Desktop/JavaFolder/RaycastingEngine/Textures/bcsTheme.wav").getAbsoluteFile());
+            
+            // create clip reference
+            clip = AudioSystem.getClip();
+            
+            // open audioInputStream to the clip
+            clip.open(audioInputStream);
+            
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+
+            FloatControl volume = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN); 
+            volume.setValue(-10f);
+        } catch (Exception e) {
+            System.out.println("Error with playing sound.");
+        }
     }
 
     static double fps;
@@ -372,12 +449,12 @@ public class raycastC extends JPanel {
         final JFrame frame = new JFrame("Raycast");
         
         // Initalize Variables
-        px = 150; py = 400; pa = 90; pdx = Math.cos(degToRad(pa)); pdy = -Math.sin(degToRad(pa));
+        px = (int) (startPositionX * 64); py = (int) (startPositionY * 64); pa = 90; pdx = Math.cos(degToRad(pa)); pdy = -Math.sin(degToRad(pa));
 
         sprites = new sprite[4];
         for (int i = 0; i < sprites.length; i++) { sprites[i] = new sprite(); }
 
-        sprites[0].createStprite(3, 1, 0, (int) (4.5 * 64), 6 * 64, 0);
+        sprites[0].createStprite(3, 1, 0, 5 * 64, 6 * 64, 20);
 
         keysPressed = new String[10];
         for (int i = 0; i < keysPressed.length; i++) { keysPressed[i] = ""; }
@@ -389,11 +466,14 @@ public class raycastC extends JPanel {
         Sprite_Textures = textureGetter("SpriteTextures");
         Skybox = textureGetter("skybox");
 
+        //SimpleAudioPlayer();
+
         frame.setExtendedState(JFrame.MAXIMIZED_BOTH); frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); frame.getContentPane().add(panel, BorderLayout.CENTER); frame.setVisible(true);
 
         while (true) {
             panel.repaint();
             fps = 10; // Chnage This yourself smh
+            
         }
     }
 }
